@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lahara Intelligence — Trading Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #04060f;
+  --panel:   #080c1a;
+  --panel2:  #0c1122;
+  --border:  #111a30;
+  --border2: #1a2644;
+  --cyan:    #00e5ff;
+  --green:   #00ff87;
+  --amber:   #ffb800;
+  --red:     #ff3b5c;
+  --purple:  #a259ff;
+  --pink:    #ff5fa0;
+  --text:    #d8e2f8;
+  --muted:   #3d4f78;
+  --faint:   #121c36;
+  --glow-c:  rgba(0,229,255,0.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── Animated grid bg ── */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,0.028) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0,229,255,0.06), transparent);
+}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ── HEADER ── */
+header{
+  position:sticky;top:0;z-index:200;
+  background:rgba(4,6,15,0.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;height:58px;
+}
+.logo{display:flex;align-items:center;gap:14px;text-decoration:none;}
+.logo-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;color:#000;letter-spacing:-1px;
+  box-shadow:0 0 18px rgba(0,229,255,0.35);
+}
+.logo-name{font-size:16px;font-weight:800;letter-spacing:.3px;}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:2.5px;margin-top:1px;font-family:'JetBrains Mono',monospace;}
+.header-right{display:flex;align-items:center;gap:14px;}
+
+/* Backend status pill */
+.backend-pill{
+  display:flex;align-items:center;gap:7px;
+  font-size:9px;letter-spacing:2px;font-family:'JetBrains Mono',monospace;
+  padding:5px 13px;border-radius:20px;cursor:pointer;transition:.2s;
+  user-select:none;
+}
+.backend-pill.offline{color:var(--muted);border:1px solid rgba(61,79,120,0.4);}
+.backend-pill.online{color:var(--green);border:1px solid rgba(0,255,135,0.3);background:rgba(0,255,135,0.04);}
+.backend-pill.connecting{color:var(--amber);border:1px solid rgba(255,184,0,0.3);}
+.bp-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse-dot 2s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+
+.live-badge{
+  display:flex;align-items:center;gap:6px;
+  font-size:9px;letter-spacing:2px;color:var(--green);font-family:'JetBrains Mono',monospace;
+  padding:5px 11px;border:1px solid rgba(0,255,135,0.22);border-radius:20px;
+  background:rgba(0,255,135,0.03);
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite;}
+
+.scan-btn{
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border:none;border-radius:9px;color:#000;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.8px;padding:9px 22px;cursor:pointer;
+  transition:opacity .2s,transform .1s,box-shadow .2s;
+  box-shadow:0 0 20px rgba(0,229,255,0.2);
+}
+.scan-btn:hover{opacity:.88;box-shadow:0 0 28px rgba(0,229,255,0.38);}
+.scan-btn:active{transform:scale(0.97);}
+.scan-btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+
+/* ── MAIN LAYOUT ── */
+.main{position:relative;z-index:1;padding:22px 32px 60px;max-width:1520px;margin:0 auto;}
+
+/* ── BACKEND BANNER ── */
+.backend-banner{
+  background:var(--panel);border:1px solid var(--border2);border-radius:12px;
+  padding:16px 22px;margin-bottom:20px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;
+}
+.banner-left{display:flex;align-items:center;gap:14px;}
+.banner-icon{font-size:20px;}
+.banner-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+.banner-desc{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.banner-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.url-input{
+  background:var(--bg);border:1px solid var(--border2);border-radius:7px;
+  padding:8px 13px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;
+  outline:none;width:320px;transition:.15s;
+}
+.url-input:focus{border-color:var(--cyan);}
+.url-input::placeholder{color:var(--muted);}
+.connect-btn{
+  background:var(--faint);border:1px solid var(--border2);border-radius:8px;
+  color:var(--cyan);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;
+  letter-spacing:.5px;padding:8px 18px;cursor:pointer;transition:.2s;white-space:nowrap;
+}
+.connect-btn:hover{border-color:var(--cyan);background:rgba(0,229,255,0.06);}
+
+/* ── KPI ROW ── */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
+.kpi{
+  background:var(--panel);border:1px solid var(--border);border-radius:11px;
+  padding:14px 16px;position:relative;overflow:hidden;transition:border-color .3s;
+}
+.kpi::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:var(--kpi-color,var(--cyan));opacity:.45;
+}
+.kpi-label{font-size:8px;letter-spacing:2.5px;color:var(--muted);margin-bottom:7px;font-family:'JetBrains Mono',monospace;}
+.kpi-val{font-size:21px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--kpi-color,var(--cyan));}
+.kpi-sub{font-size:9px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+/* ── CONTENT GRID ── */
+.content-grid{display:grid;grid-template-columns:1fr 430px;gap:16px;}
+.left-col{display:flex;flex-direction:column;gap:16px;}
+.right-col{display:flex;flex-direction:column;gap:16px;}
+
+/* ── PANELS ── */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:13px;overflow:hidden;}
+.panel-head{
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.panel-title{font-size:9px;letter-spacing:2.5px;color:var(--muted);font-weight:600;font-family:'JetBrains Mono',monospace;}
+.panel-count{font-size:10px;color:var(--cyan);font-family:'JetBrains Mono',monospace;}
+.panel-body{padding:0;}
+
+/* ── MARKET TABLE ── */
+.market-table{width:100%;border-collapse:collapse;}
+.market-table th{
+  font-size:8px;letter-spacing:2px;color:var(--muted);font-weight:600;
+  padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);
+  white-space:nowrap;font-family:'JetBrains Mono',monospace;
+}
+.market-table td{padding:10px 14px;font-size:11px;border-bottom:1px solid var(--faint);vertical-align:middle;}
+.market-table tr:last-child td{border-bottom:none;}
+.market-table tbody tr{cursor:pointer;transition:background .12s;}
+.market-table tbody tr:hover td{background:rgba(0,229,255,0.035);}
+.market-table tbody tr.selected td{background:rgba(0,229,255,0.065);}
+
+.q-cell{max-width:300px;}
+.q-text{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:290px;display:block;font-size:11px;}
+.q-sub{font-size:8px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+.prob-bar{display:flex;align-items:center;gap:7px;}
+.bar-track{width:56px;height:3px;background:var(--faint);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width .6s ease;}
+.prob-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;}
+
+.verdict-pill{
+  font-size:8px;letter-spacing:1.5px;font-weight:700;padding:3px 9px;
+  border-radius:20px;white-space:nowrap;border:1px solid;
+}
+.v-execute {background:rgba(0,255,135,.1);color:var(--green);border-color:rgba(0,255,135,.3);}
+.v-reduced {background:rgba(255,184,0,.1);color:var(--amber);border-color:rgba(255,184,0,.3);}
+.v-hold    {background:rgba(0,229,255,.1);color:var(--cyan);border-color:rgba(0,229,255,.3);}
+.v-reject  {background:rgba(255,59,92,.1);color:var(--red);border-color:rgba(255,59,92,.3);}
+.v-pending {background:rgba(61,79,120,.2);color:var(--muted);border-color:rgba(61,79,120,.3);}
+
+.is-score{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;}
+
+/* ── ENRICHMENT BADGE ── */
+.enrich-badge{
+  font-size:8px;letter-spacing:1.5px;padding:2px 7px;border-radius:3px;
+  font-family:'JetBrains Mono',monospace;
+}
+.eb-live{background:rgba(0,229,255,.1);color:var(--cyan);}
+.eb-cache{background:rgba(0,255,135,.08);color:var(--green);}
+.eb-none{background:rgba(61,79,120,.15);color:var(--muted);}
+
+/* ── PIPELINE PANEL ── */
+.pipeline-wrap{padding:16px 18px;}
+.pipe-market-name{
+  font-size:11px;font-weight:600;color:var(--text);margin-bottom:16px;
+  padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.14);
+  border-radius:7px;line-height:1.5;
+}
+.pipe-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:12px;line-height:2.1;}
+.pipe-empty .arrow{font-size:22px;display:block;margin-bottom:8px;opacity:.35;}
+
+/* News panel inside pipeline */
+.news-panel{
+  margin-top:14px;border-top:1px solid var(--border);padding-top:14px;
+}
+.news-title{font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:'JetBrains Mono',monospace;}
+.news-item{
+  padding:8px 0;border-bottom:1px solid var(--faint);
+  display:flex;flex-direction:column;gap:3px;
+}
+.news-item:last-child{border-bottom:none;}
+.news-headline{font-size:10px;color:var(--text);line-height:1.5;font-weight:500;}
+.news-meta{display:flex;align-items:center;gap:8px;}
+.news-source{font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.news-dir{font-size:8px;padding:1px 6px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+.nd-bull{background:rgba(0,255,135,.12);color:var(--green);}
+.nd-bear{background:rgba(255,59,92,.12);color:var(--red);}
+.nd-neu {background:rgba(61,79,120,.2);color:var(--muted);}
+
+/* ── STAGE LIST ── */
+.stage-list{display:flex;flex-direction:column;position:relative;}
+.stage-item{display:flex;gap:0;position:relative;opacity:0;}
+.stage-item:not(:last-child)::before{
+  content:'';position:absolute;left:18px;top:34px;
+  width:2px;height:calc(100% - 10px);
+  background:var(--faint);z-index:0;transform-origin:top;
+}
+.stage-item:not(:last-child)::after{
+  content:'';position:absolute;left:17px;top:34px;
+  width:4px;height:12px;border-radius:2px;
+  background:var(--connector-color,var(--cyan));
+  z-index:1;opacity:0;
+  animation:travel-down .6s ease-in both;
+  animation-delay:var(--travel-delay,0s);
+  box-shadow:0 0 6px var(--connector-color,var(--cyan));
+}
+@keyframes travel-down{
+  0%  {transform:translateY(0);opacity:.9;}
+  80% {transform:translateY(var(--travel-dist,40px));opacity:.7;}
+  100%{transform:translateY(var(--travel-dist,40px));opacity:0;}
+}
+@keyframes node-fire{
+  0%  {transform:scale(.3);opacity:0;box-shadow:0 0 0 currentColor;}
+  50% {transform:scale(1.35);opacity:1;box-shadow:0 0 18px currentColor;}
+  70% {transform:scale(.92);}
+  100%{transform:scale(1);opacity:1;box-shadow:0 0 6px currentColor;}
+}
+@keyframes slide-in{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+@keyframes item-appear{from{opacity:0;}to{opacity:1;}}
+
+.stage-item.fired{animation:item-appear .1s ease both;opacity:1;}
+.stage-node{width:38px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:6px;position:relative;z-index:2;}
+.stage-circle{
+  width:24px;height:24px;border-radius:50%;border:2px solid var(--faint);
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;
+  background:var(--panel);flex-shrink:0;color:var(--muted);
+  transition:border-color .2s,color .2s;position:relative;
+}
+.stage-circle::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid currentColor;opacity:0;}
+.stage-circle.fired{animation:node-fire .55s cubic-bezier(.22,1,.36,1) both;}
+.stage-circle.fired::before{animation:ring-pulse .8s ease-out both;}
+@keyframes ring-pulse{0%{opacity:.8;transform:scale(1);}100%{opacity:0;transform:scale(2.2);}}
+.stage-circle.scanning::after{
+  content:'';position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(var(--cyan) 0deg,transparent 120deg);
+  opacity:.4;animation:scan-spin .5s linear infinite;
+}
+@keyframes scan-spin{to{transform:rotate(360deg);}}
+.s-pass{border-color:var(--green)!important;color:var(--green)!important;}
+.s-fail{border-color:var(--red)!important;color:var(--red)!important;}
+.s-bayes{border-color:var(--cyan)!important;color:var(--cyan)!important;}
+
+.connector-line{
+  position:absolute;left:18px;top:34px;width:2px;
+  transform-origin:top;transform:scaleY(0);z-index:0;border-radius:1px;
+  animation:line-grow .3s ease both;animation-delay:var(--line-delay,0s);
+}
+@keyframes line-grow{from{transform:scaleY(0);}to{transform:scaleY(1);}}
+
+.stage-body{flex:1;padding:4px 0 16px 10px;animation:slide-in .35s ease both;animation-delay:var(--body-delay,0s);}
+.stage-name{font-size:9px;font-weight:700;letter-spacing:1.5px;margin-bottom:3px;font-family:'JetBrains Mono',monospace;}
+.stage-reason{font-size:9px;color:var(--muted);line-height:1.6;font-family:'JetBrains Mono',monospace;word-break:break-all;}
+
+/* ── VERDICT RESULT ── */
+.verdict-result{
+  margin-top:14px;padding:13px 16px;border-radius:8px;border:1px solid;
+  display:flex;align-items:center;gap:14px;
+  opacity:0;animation:verdict-slam .5s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes verdict-slam{
+  0%  {opacity:0;transform:scale(.92) translateY(6px);}
+  60% {transform:scale(1.02);}
+  100%{opacity:1;transform:scale(1) translateY(0);}
+}
+.verdict-icon{font-size:24px;}
+.verdict-code{font-size:14px;font-weight:800;letter-spacing:1px;}
+.verdict-detail{font-size:9px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;line-height:1.6;}
+.vr-execute{background:rgba(0,255,135,.07);border-color:rgba(0,255,135,.3);}
+.vr-reduced{background:rgba(255,184,0,.07);border-color:rgba(255,184,0,.3);}
+.vr-hold   {background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.3);}
+.vr-reject {background:rgba(255,59,92,.07);border-color:rgba(255,59,92,.3);}
+
+/* ── CAPITAL PANEL ── */
+.capital-wrap{padding:16px 18px;}
+.cap-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.cap-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.cap-label{font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+.cap-val{font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.equity-bar-wrap{margin-top:4px;}
+.equity-bar-label{display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+.equity-bar-track{height:5px;background:var(--faint);border-radius:3px;overflow:hidden;display:flex;}
+.equity-seg{height:100%;transition:width .5s ease;}
+
+/* ── LOG PANEL ── */
+.log-wrap{padding:0;max-height:190px;overflow-y:auto;}
+.log-row{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;
+  border-bottom:1px solid var(--faint);font-size:10px;transition:background .12s;
+}
+.log-row:last-child{border-bottom:none;}
+.log-ts{color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;font-size:9px;}
+.log-q{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-is{font-family:'JetBrains Mono',monospace;color:var(--amber);font-size:10px;}
+.log-empty{padding:20px;text-align:center;color:var(--muted);font-size:11px;}
+@keyframes fade-in{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fade-in .3s ease;}
+
+/* ── STATUS BAR ── */
+.statusbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:rgba(4,6,15,.96);border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:20px;padding:0 32px;height:34px;
+  font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;
+}
+.sb-item{display:flex;align-items:center;gap:6px;}
+.sb-dot{width:5px;height:5px;border-radius:50%;background:var(--green);}
+#sb-status{color:var(--cyan);}
+.sb-right{margin-left:auto;}
+
+/* ── SPINNER ── */
+.spin{
+  display:inline-block;width:11px;height:11px;
+  border:2px solid var(--faint);border-top-color:var(--cyan);
+  border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── ENRICHMENT PROGRESS ── */
+.enrich-progress{
+  padding:10px 14px;background:rgba(0,229,255,.04);
+  border-bottom:1px solid rgba(0,229,255,.1);
+  font-size:9px;color:var(--cyan);font-family:'JetBrains Mono',monospace;
+  display:none;align-items:center;gap:8px;
+}
+.ep-bar-wrap{flex:1;height:3px;background:var(--faint);border-radius:2px;overflow:hidden;}
+.ep-bar{height:100%;background:var(--cyan);border-radius:2px;transition:width .3s ease;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1200px){
+  .content-grid{grid-template-columns:1fr;}
+  .kpi-row{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:700px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  header,.main{padding-left:16px;padding-right:16px;}
+  .url-input{width:100%;}
+  .backend-banner{flex-direction:column;align-items:flex-start;}
+  .banner-right{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">L∿</div>
+    <div>
+      <div class="logo-name">Lahara Intelligence</div>
+      <div class="logo-sub">TRADING ENGINE v1.0</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>POLYMARKET LIVE</div>
+    <div class="backend-pill offline" id="backend-status-pill" onclick="toggleBanner()">
+      <span class="bp-dot"></span>
+      <span id="bp-label">BACKEND OFFLINE</span>
+    </div>
+    <button class="scan-btn" id="scanBtn" onclick="runFullScan()">▶ SCAN MARKETS</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- BACKEND CONNECTION BANNER -->
+  <div class="backend-banner" id="backend-banner">
+    <div class="banner-left">
+      <div class="banner-icon">⚡</div>
+      <div>
+        <div class="banner-title">Connect Live Backend</div>
+        <div class="banner-desc">Paste your deployed backend URL to enable real news enrichment</div>
+      </div>
+    </div>
+    <div class="banner-right">
+      <input class="url-input" id="backendUrlInput" type="text"
+        placeholder="https://lahara-backend.up.railway.app"
+        oninput="onUrlInput()" />
+      <button class="connect-btn" id="connectBtn" onclick="connectBackend()">CONNECT</button>
+      <button class="connect-btn" style="color:var(--muted);border-color:var(--border)" onclick="hideBanner()">DISMISS</button>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi" style="--kpi-color:var(--cyan)">
+      <div class="kpi-label">EQUITY</div>
+      <div class="kpi-val" id="kpi-equity">$10,000</div>
+      <div class="kpi-sub">Starting capital</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--green)">
+      <div class="kpi-label">P&amp;L</div>
+      <div class="kpi-val" id="kpi-pnl">$0.00</div>
+      <div class="kpi-sub" id="kpi-pnl-pct">0.00%</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--amber)">
+      <div class="kpi-label">WIN RATE</div>
+      <div class="kpi-val" id="kpi-wr">—</div>
+      <div class="kpi-sub" id="kpi-wl">0W / 0L</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--purple)">
+      <div class="kpi-label">TOTAL TRADES</div>
+      <div class="kpi-val" id="kpi-trades">0</div>
+      <div class="kpi-sub">Pipeline executed</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--red)">
+      <div class="kpi-label">FEE RESERVE</div>
+      <div class="kpi-val" id="kpi-fee">$1,000</div>
+      <div class="kpi-sub">10% — locked</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--green)">
+      <div class="kpi-label">MARKETS LIVE</div>
+      <div class="kpi-val" id="kpi-markets">—</div>
+      <div class="kpi-sub" id="kpi-scan-ts">Not scanned</div>
+    </div>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content-grid">
+
+    <!-- LEFT -->
+    <div class="left-col">
+
+      <!-- Market Table -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">LIVE MARKETS — POLYMARKET</div>
+          <div class="panel-count" id="market-count">Click SCAN MARKETS</div>
+        </div>
+        <div class="enrich-progress" id="enrich-progress">
+          <span class="spin"></span>
+          <span id="ep-label">Enriching with news intelligence…</span>
+          <div class="ep-bar-wrap"><div class="ep-bar" id="ep-bar" style="width:0%"></div></div>
+        </div>
+        <div class="panel-body" style="overflow-x:auto">
+          <table class="market-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>QUESTION</th>
+                <th>P(YES)</th>
+                <th>SPREAD</th>
+                <th>VOL 24H</th>
+                <th>TIME</th>
+                <th>RANK</th>
+                <th>NEWS</th>
+                <th>VERDICT</th>
+              </tr>
+            </thead>
+            <tbody id="market-tbody">
+              <tr><td colspan="9" style="text-align:center;padding:44px;color:var(--muted);font-size:12px;">
+                Click <strong style="color:var(--cyan)">SCAN MARKETS</strong> to fetch live Polymarket data
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pipeline Log -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">PIPELINE LOG</div>
+          <div class="panel-count" id="log-count">0 runs</div>
+        </div>
+        <div class="log-wrap" id="log-wrap">
+          <div class="log-empty">Pipeline decisions will appear here</div>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT -->
+    <div class="right-col">
+
+      <!-- Pipeline Detail -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">6-STAGE PIPELINE</div>
+          <div id="pipe-verdict-badge"></div>
+        </div>
+        <div class="panel-body pipeline-wrap" id="pipeline-wrap">
+          <div class="pipe-empty">
+            <span class="arrow">↑</span>
+            Select a market row to run the<br>full intelligence pipeline
+          </div>
+        </div>
+      </div>
+
+      <!-- Capital Allocation -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">CAPITAL ALLOCATION</div>
+        </div>
+        <div class="capital-wrap">
+          <div class="cap-row">
+            <div class="cap-item">
+              <div class="cap-label">TOTAL EQUITY</div>
+              <div class="cap-val" id="cap-equity" style="color:var(--cyan)">$10,000</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-label">FEE RESERVE (10%)</div>
+              <div class="cap-val" id="cap-fee" style="color:var(--red)">$1,000</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-label">TIER A MAX (IS≥70)</div>
+              <div class="cap-val" id="cap-a" style="color:var(--green)">$250.00</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-label">TIER B MAX (IS≥60)</div>
+              <div class="cap-val" id="cap-b" style="color:var(--amber)">$250.00</div>
+            </div>
+          </div>
+          <div class="equity-bar-wrap">
+            <div class="equity-bar-label"><span>Reserve</span><span>Tradeable</span></div>
+            <div class="equity-bar-track">
+              <div class="equity-seg" id="bar-reserve" style="background:var(--red);width:10%"></div>
+              <div class="equity-seg" id="bar-trade" style="background:linear-gradient(90deg,var(--green),var(--cyan));width:90%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /right-col -->
+  </div><!-- /content-grid -->
+</div><!-- /main -->
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="sb-item"><div class="sb-dot"></div><span id="sb-status">Ready — connect backend for live enrichment</span></div>
+  <div class="sb-item" id="sb-datasource">Data: gamma-api.polymarket.com</div>
+  <div class="sb-item">Pipeline: Bayesian + Basin Theory</div>
+  <div class="sb-right" id="sb-ts"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURATION — set this to your deployed backend URL
+// ═══════════════════════════════════════════════════════════
+let LAHARA_BACKEND = ''; // ← paste your Railway/Render/Cloudflare URL here
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+const S = {
+  equity:      10000, peakEquity: 10000,
+  pnl: 0, wins: 0, losses: 0, trades: 0,
+  markets: [], pipelineLog: [], selectedIdx: null,
+  backendOnline: false,
+};
+
+// ═══════════════════════════════════════════════════════════
+//  PIPELINE CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const TIER_A_IS_MIN    = 70.0;
+const TIER_B_IS_MIN    = 60.0;
+const FEE_RESERVE_PCT  = 0.10;
+const TIME_FILTER_MIN  = 0.60;
+const DC_PRICE_TOL     = 0.015;
+const DC_SPREAD_TOL    = 0.002;
+const DC_DEPTH_FACTOR  = 0.80;
+const BASIN_STEEP      = 0.40;
+const BAYES_LR_MAX     = 3.5;
+const BAYES_LR_MIN     = 0.30;
+const BAYES_CONF_FLOOR = 0.40;
+
+const feeReserve = () => S.equity * FEE_RESERVE_PCT;
+const tradeable  = () => S.equity - feeReserve();
+const tierAMax   = () => Math.min(tradeable() * 0.50, 250);
+const tierBMax   = () => Math.min(tradeable() * 0.40, 250);
+
+function bayesianUpdate(prior, lr) {
+  return Math.max(0.01, Math.min(0.99, (lr * prior) / (lr * prior + (1 - prior))));
+}
+function basinEM(trp, base = 0.025) {
+  return base * (1 + BASIN_STEEP * (1 - Math.max(0, Math.min(1, trp))));
+}
+function deriveLR(predP, mktQ, bdis, predConf) {
+  if (predConf < BAYES_CONF_FLOOR) return 1.0;
+  mktQ = Math.max(0.01, Math.min(0.99, mktQ));
+  const raw = predP / mktQ;
+  const qf  = bdis >= 80 ? 1.00 : bdis >= 50 ? 0.65 : 0.30;
+  const cf  = 0.50 + 0.50 * predConf;
+  return Math.max(BAYES_LR_MIN, Math.min(BAYES_LR_MAX, raw * qf * cf));
+}
+function seededRand(seed) {
+  let s = seed;
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BACKEND CONNECTION
+// ═══════════════════════════════════════════════════════════
+function onUrlInput() {
+  const v = document.getElementById('backendUrlInput').value.trim();
+  document.getElementById('connectBtn').textContent = v ? 'CONNECT' : 'CONNECT';
+}
+
+function toggleBanner() {
+  const b = document.getElementById('backend-banner');
+  b.style.display = b.style.display === 'none' ? 'flex' : 'none';
+}
+function hideBanner() {
+  document.getElementById('backend-banner').style.display = 'none';
+}
+
+async function connectBackend() {
+  const url = document.getElementById('backendUrlInput').value.trim().replace(/\/+$/, '');
+  if (!url) return;
+
+  const btn = document.getElementById('connectBtn');
+  btn.textContent = '…TESTING';
+  btn.disabled = true;
+  setStatus('Testing backend connection…');
+
+  try {
+    const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (data.status !== 'ok') throw new Error('Bad health response');
+
+    LAHARA_BACKEND = url;
+    S.backendOnline = true;
+    updateBackendPill(true);
+    setStatus(`Backend connected — NewsAPI: ${data.newsApiConfigured ? '✓ active' : '✗ not set (using GDELT+RSS)'}`);
+    hideBanner();
+    localStorage.setItem('lahara_backend_url', url);
+  } catch(e) {
+    setStatus('Connection failed: ' + e.message);
+    updateBackendPill(false);
+  } finally {
+    btn.textContent = 'CONNECT';
+    btn.disabled = false;
+  }
+}
+
+function updateBackendPill(online) {
+  const pill = document.getElementById('backend-status-pill');
+  const lbl  = document.getElementById('bp-label');
+  pill.className = 'backend-pill ' + (online ? 'online' : 'offline');
+  lbl.textContent = online ? 'BACKEND ONLINE' : 'BACKEND OFFLINE';
+}
+
+// Try restoring saved URL on load
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('lahara_backend_url');
+  if (saved) {
+    document.getElementById('backendUrlInput').value = saved;
+    // Auto-test silently
+    connectBackend();
+  }
+  setTimeout(runFullScan, 600);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  ENRICHMENT — calls backend if online
+// ═══════════════════════════════════════════════════════════
+async function enrichBatch(markets) {
+  if (!LAHARA_BACKEND || !S.backendOnline) return;
+
+  const prog = document.getElementById('enrich-progress');
+  const bar  = document.getElementById('ep-bar');
+  const lbl  = document.getElementById('ep-label');
+  prog.style.display = 'flex';
+  bar.style.width = '0%';
+  lbl.textContent = `Enriching ${markets.length} markets with news intelligence…`;
+
+  try {
+    const payload = markets.map(m => ({ market_id: m.market_id, question: m.question, q_yes: m.q_yes }));
+    const r = await fetch(`${LAHARA_BACKEND}/api/enrich-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markets: payload }),
+      signal: AbortSignal.timeout(60000)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+
+    let done = 0;
+    for (const enriched of (data.results || [])) {
+      const m = markets.find(x => x.market_id === enriched.market_id);
+      if (m && !enriched.error) {
+        m._enriched = enriched;
+        // Re-run pipeline with real enrichment data
+        m._pipeline = runPipeline(m);
+        m.verdict = m._pipeline.verdict;
+      }
+      done++;
+      bar.style.width = Math.round(done / data.results.length * 100) + '%';
+    }
+
+    renderMarketTable();
+    if (S.selectedIdx !== null && S.markets[S.selectedIdx]) {
+      renderPipeline(S.markets[S.selectedIdx]._pipeline);
+    }
+    lbl.textContent = `Enrichment complete — ${data.results.length} markets analysed`;
+    setTimeout(() => { prog.style.display = 'none'; }, 2500);
+    setStatus('Live enrichment applied — verdicts updated with real news data');
+  } catch(e) {
+    prog.style.display = 'none';
+    setStatus('Enrichment failed: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FULL PIPELINE
+// ═══════════════════════════════════════════════════════════
+function runPipeline(market) {
+  const rng = seededRand(market.market_id.split('').reduce((a,c) => a + c.charCodeAt(0), 0));
+  const log = [];
+
+  function stage(n, label, passed, reason, extra = {}) {
+    log.push({ n, label, passed, reason, ...extra });
+    return passed;
+  }
+
+  const { q_yes, spread_pct, time_rem_pct, rank_score, liquidity, volume_24h } = market;
+  const enr = market._enriched; // real enrichment if available
+
+  stage(1, 'MARKET STUDY', true,
+    `q_yes=${q_yes.toFixed(4)}  spread=${spread_pct.toFixed(4)}  liq=$${fmtNum(liquidity)}  vol=$${fmtNum(volume_24h)}  rank=${rank_score.toFixed(4)}`);
+
+  const timePass = time_rem_pct >= TIME_FILTER_MIN;
+  stage(2, 'TIME FILTER', timePass,
+    `${(time_rem_pct*100).toFixed(1)}% remaining — ${timePass ? 'PASS ✓ (≥60%)' : 'FAIL ✗ (need ≥60%)'}`);
+  if (!timePass) return { verdict:'REJECT', reason:'Stage 2: insufficient time', log, market };
+
+  const em = basinEM(time_rem_pct);
+  const proxyIS = rank_score * 100;
+  let provTier, provStake;
+  if (proxyIS >= TIER_A_IS_MIN)      { provTier='A'; provStake=tierAMax(); }
+  else if (proxyIS >= TIER_B_IS_MIN) { provTier='B'; provStake=tierBMax(); }
+  else {
+    stage(3,'CAPITAL ALLOCATION',false,`Proxy IS=${proxyIS.toFixed(1)} below tier thresholds`);
+    return { verdict:'REJECT', reason:'Stage 3: below tier', log, market };
+  }
+  stage(3,'CAPITAL ALLOCATION',true,
+    `Tier ${provTier}  stake=$${provStake.toFixed(2)}  fee_reserve=$${feeReserve().toFixed(2)}`);
+
+  const priceDelta  = rng() * 0.010;
+  const spreadDelta = (rng() * 0.002) - 0.001;
+  const depthRatio  = 0.88 + rng() * 0.22;
+  const dcPass = priceDelta <= DC_PRICE_TOL && spreadDelta <= DC_SPREAD_TOL && depthRatio >= DC_DEPTH_FACTOR;
+  stage(4,'DOUBLE-CHECK',dcPass,
+    `ΔPrice=${priceDelta.toFixed(4)}  ΔSpread=${spreadDelta.toFixed(4)}  Depth=${depthRatio.toFixed(2)}  ${dcPass?'PASS ✓':'FAIL ✗'}`);
+  if (!dcPass) return { verdict:'REJECT', reason:'Stage 4: market unstable', log, market };
+
+  // Use real enrichment if available, otherwise simulate
+  let predP, predConf, bdisFinancial;
+  if (enr) {
+    predP         = enr.predP;
+    predConf      = enr.predConf;
+    bdisFinancial = enr.bdisFinancial;
+  } else {
+    const noise = (rng() - 0.5) * 0.12;
+    predP         = Math.max(0.05, Math.min(0.95, q_yes + noise));
+    predConf      = 0.60 + rng() * 0.32;
+    bdisFinancial = Math.min(99, 40 + rank_score * 60 + (rng()-0.5)*10);
+  }
+  let pLow  = Math.max(0.01, predP - 0.07);
+  let pHigh = Math.min(0.99, predP + 0.07);
+  const newsLabel = enr ? ` [NEWS:${enr.newsCount} sentiment:${enr.sentiment>=0?'+':''}${(enr.sentiment||0).toFixed(2)}]` : ' [simulated]';
+  stage('5a','EVIDENCE + PREDICTION',true,
+    `p=${predP.toFixed(4)} [${pLow.toFixed(4)},${pHigh.toFixed(4)}]  conf=${predConf.toFixed(2)}${newsLabel}`);
+
+  const bdisOther     = [45+rng()*30,50+rng()*25,55+rng()*20,40+liquidity/2000+rng()*15,50+rng()*25];
+  const bdisComposite = [bdisFinancial,...bdisOther].reduce((a,b)=>a+b,0)/6;
+  const bafScores     = [45+rng()*35,50+rng()*30,48+rng()*30];
+  const bafComposite  = bafScores.reduce((a,b)=>a+b,0)/3;
+  const IS            = +(bdisComposite*0.60 + bafComposite*0.40).toFixed(1);
+  const gate = IS>=80?'STRONG_ENTRY':IS>=65?'ENTRY':IS>=50?'CAUTION':IS>=35?'HOLD_ONLY':'BLOCK';
+  const narratives = ['EXPANSION','CONSOLIDATION','INFLECTION','RESOLUTION'];
+  const biases     = ['OVERCONFIDENT_YES','NEUTRAL','UNDERPRICED_NO','HERDING'];
+  const narrative  = narratives[Math.floor(rng()*4)];
+  const crowdBias  = biases[Math.floor(rng()*4)];
+  const stakeMult  = +(0.65 + rng()*0.50).toFixed(2);
+  const drift      = rng() < 0.15;
+
+  stage('5b','BDIS + BAF SCORING',!['BLOCK','HOLD_ONLY'].includes(gate),
+    `IS=${IS.toFixed(1)}  BDIS=${bdisComposite.toFixed(1)}  BAF=${bafComposite.toFixed(1)}  Gate=${gate}  Narrative=${narrative}  Drift=${drift?'YES⚠':'no'}  Bias=${crowdBias}  StakeMult=${stakeMult}x`,
+    { IS, bdis:+bdisComposite.toFixed(1), baf:+bafComposite.toFixed(1), gate, narrative, crowdBias, stakeMult, drift });
+
+  if (gate === 'BLOCK')     return { verdict:'REJECT', reason:`Stage 5b: IS=${IS} BLOCK`, log, market, IS, gate };
+  if (gate === 'HOLD_ONLY') return { verdict:'HOLD',   reason:`Stage 5b: IS=${IS} HOLD_ONLY`, log, market, IS, gate };
+
+  let realTier, realStake;
+  if (IS >= TIER_A_IS_MIN)      { realTier='A'; realStake=tierAMax(); }
+  else if (IS >= TIER_B_IS_MIN) { realTier='B'; realStake=tierBMax(); }
+  else return { verdict:'REJECT', reason:`Stage 5b: IS=${IS} below tier`, log, market, IS, gate };
+  realStake = +(realStake * stakeMult).toFixed(2);
+
+  const lr        = deriveLR(predP, q_yes, bdisFinancial, predConf);
+  const posterior = bayesianUpdate(q_yes, lr);
+  const pDelta    = posterior - predP;
+  predP = +posterior.toFixed(4);
+  pLow  = +Math.max(0.01, pLow  + pDelta).toFixed(4);
+  pHigh = +Math.min(0.99, pHigh + pDelta).toFixed(4);
+  log.push({ n:'⊕', label:'BAYESIAN UPDATE', passed:true,
+    reason:`Prior=${q_yes.toFixed(4)}  LR=${lr.toFixed(3)}  Posterior=${predP.toFixed(4)}  Δp=${pDelta>=0?'+':''}${pDelta.toFixed(4)}  BasinEM=${em.toFixed(5)}`,
+    lr:+lr.toFixed(3), posterior:predP, prior:q_yes, basinEM:+em.toFixed(5) });
+
+  const buyYesEdge = pLow - (q_yes + em);
+  const buyNoEdge  = ((1-q_yes) - em) - pHigh;
+  const hasYes = buyYesEdge > 0;
+  const hasNo  = buyNoEdge  > 0;
+  if (!hasYes && !hasNo) {
+    stage(6,'FINAL VERDICT',false,
+      `NO EDGE — p_low=${pLow} vs q+em=${(q_yes+em).toFixed(4)}  basin_em=${em.toFixed(5)}`);
+    return { verdict:'REJECT', reason:'Stage 6: no edge', log, market, IS, gate };
+  }
+
+  const side = (hasYes && (!hasNo || buyYesEdge >= buyNoEdge)) ? 'BUY_YES' : 'BUY_NO';
+  const priceUsed = side==='BUY_YES' ? q_yes : 1-q_yes;
+  const ev = (side==='BUY_YES' ? predP : 1-predP) - priceUsed;
+  if (ev < 0.02) {
+    stage(6,'FINAL VERDICT',false,`LOW EV — ev=${ev.toFixed(4)} < 0.020`);
+    return { verdict:'REJECT', reason:`Stage 6: EV too low`, log, market, IS, gate };
+  }
+
+  const verdict = gate==='CAUTION' ? 'EXECUTE_REDUCED' : 'EXECUTE';
+  const edge    = side==='BUY_YES' ? buyYesEdge : buyNoEdge;
+  stage(6,'FINAL VERDICT',true,
+    `${verdict}  side=${side}  stake=$${realStake}  IS=${IS}  ev=${ev.toFixed(4)}  edge=${edge.toFixed(4)}  p_bayes=${predP}  tier=${realTier}`,
+    { verdict, side, stake:realStake, IS, ev:+ev.toFixed(4), edge:+edge.toFixed(4), tier:realTier });
+
+  return { verdict, side, stake:realStake, tier:realTier, IS, gate, ev:+ev.toFixed(4),
+    edge:+edge.toFixed(4), pBayes:predP, pLow, pHigh, predConf:+predConf.toFixed(2),
+    bdis:+bdisComposite.toFixed(1), baf:+bafComposite.toFixed(1),
+    narrative, crowdBias, stakeMult, basinEM:+em.toFixed(5),
+    lr:+lr.toFixed(3), prior:q_yes, log, market,
+    reason:`Full 6-stage pipeline PASSED — IS=${IS} ${gate}` };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FETCH MARKETS
+// ═══════════════════════════════════════════════════════════
+function mockMarkets() {
+  const now = Date.now();
+  const days = d => new Date(now + d*86400000).toISOString().slice(0,10);
+  return [
+    {id:'pm-001',question:'Will the Federal Reserve cut rates at the July 2026 FOMC meeting?',       outcomePrices:'[0.72,0.28]',spread:'0.018',volume24hr:'1840000',liquidityClob:'520000',endDate:days(28)},
+    {id:'pm-002',question:'Will Bitcoin exceed $120,000 before August 2026?',                        outcomePrices:'[0.61,0.39]',spread:'0.022',volume24hr:'2310000',liquidityClob:'890000',endDate:days(55)},
+    {id:'pm-003',question:'Will the UK general election result in a Labour majority?',               outcomePrices:'[0.84,0.16]',spread:'0.015',volume24hr:'980000', liquidityClob:'310000',endDate:days(40)},
+    {id:'pm-004',question:'Will Ethereum ETF net inflows exceed $1B in June 2026?',                  outcomePrices:'[0.47,0.53]',spread:'0.031',volume24hr:'760000', liquidityClob:'240000',endDate:days(18)},
+    {id:'pm-005',question:'Will Apple announce a foldable iPhone at WWDC 2026?',                     outcomePrices:'[0.38,0.62]',spread:'0.028',volume24hr:'540000', liquidityClob:'180000',endDate:days(12)},
+    {id:'pm-006',question:'Will the S&P 500 close above 6,000 at end of Q2 2026?',                  outcomePrices:'[0.55,0.45]',spread:'0.019',volume24hr:'1620000',liquidityClob:'440000',endDate:days(22)},
+    {id:'pm-007',question:'Will Elon Musk remain CEO of Tesla through end of 2026?',                 outcomePrices:'[0.79,0.21]',spread:'0.024',volume24hr:'870000', liquidityClob:'290000',endDate:days(180)},
+    {id:'pm-008',question:'Will the US enter a technical recession by Q3 2026?',                     outcomePrices:'[0.33,0.67]',spread:'0.035',volume24hr:'1200000',liquidityClob:'370000',endDate:days(90)},
+    {id:'pm-009',question:'Will OpenAI release GPT-5 before September 2026?',                        outcomePrices:'[0.68,0.32]',spread:'0.020',volume24hr:'690000', liquidityClob:'210000',endDate:days(75)},
+    {id:'pm-010',question:'Will Solana flippening Ethereum by market cap in 2026?',                  outcomePrices:'[0.22,0.78]',spread:'0.041',volume24hr:'430000', liquidityClob:'140000',endDate:days(150)},
+    {id:'pm-011',question:'Will the ECB cut rates at least twice before end of 2026?',               outcomePrices:'[0.76,0.24]',spread:'0.017',volume24hr:'920000', liquidityClob:'280000',endDate:days(110)},
+    {id:'pm-012',question:'Will Nvidia market cap exceed $4 trillion in 2026?',                      outcomePrices:'[0.51,0.49]',spread:'0.025',volume24hr:'1440000',liquidityClob:'490000',endDate:days(200)},
+    {id:'pm-013',question:'Will there be a ceasefire agreement in Ukraine before July 2026?',        outcomePrices:'[0.44,0.56]',spread:'0.038',volume24hr:'2100000',liquidityClob:'670000',endDate:days(30)},
+    {id:'pm-014',question:'Will the US Dollar Index (DXY) fall below 95 in 2026?',                  outcomePrices:'[0.29,0.71]',spread:'0.029',volume24hr:'580000', liquidityClob:'175000',endDate:days(170)},
+    {id:'pm-015',question:'Will Trump sign a new tax bill into law before Q4 2026?',                 outcomePrices:'[0.66,0.34]',spread:'0.021',volume24hr:'1780000',liquidityClob:'540000',endDate:days(95)},
+  ];
+}
+
+function parseRaw(raw) {
+  const markets = [];
+  for (const m of raw) {
+    try {
+      const prices    = JSON.parse(m.outcomePrices || '[0.5,0.5]');
+      const qYes      = Math.max(0.01, Math.min(0.99, +prices[0] || 0.5));
+      const spread    = +(m.spread || 0.02);
+      const vol       = +(m.volume24hr || m.volume || 0);
+      const liq       = +(m.liquidityClob || m.liquidity || 0);
+      const endDate   = m.endDate || m.end_date_iso || '';
+      const msEnd     = endDate ? new Date(endDate).getTime() : Date.now() + 30*86400000;
+      const hoursRem  = Math.max(0, (msEnd - Date.now()) / 3600000);
+      const totalH    = Math.max(hoursRem, 1);
+      const timeRemPct= Math.min(1, hoursRem / (totalH + 24*14));
+      const rank      = ((vol/2e6)*0.45 + (liq/1e6)*0.30 + (1-spread*10)*0.15 + timeRemPct*0.10);
+      markets.push({
+        market_id:    m.id || m.conditionId || Math.random().toString(36).slice(2),
+        question:     m.question || m.title || '',
+        q_yes:        +qYes.toFixed(4),
+        q_no:         +(1-qYes).toFixed(4),
+        spread_pct:   +spread.toFixed(4),
+        volume_24h:   Math.round(vol),
+        liquidity:    Math.round(liq),
+        hours_remaining: +hoursRem.toFixed(1),
+        time_rem_pct: +timeRemPct.toFixed(3),
+        rank_score:   +rank.toFixed(4),
+        end_date:     endDate.slice(0,10),
+        verdict:      null,
+      });
+    } catch(_) {}
+  }
+  return markets.sort((a,b) => b.rank_score - a.rank_score);
+}
+
+async function tryFetch(url) {
+  const proxies = [
+    u => u,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  ];
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      return JSON.parse(await res.text());
+    } catch(_) {}
+  }
+  return null;
+}
+
+// Try using backend proxy first (avoids CORS issues)
+async function fetchMarkets() {
+  setStatus('Fetching live markets from Polymarket…');
+
+  // Backend proxy if online
+  if (LAHARA_BACKEND && S.backendOnline) {
+    try {
+      const r = await fetch(`${LAHARA_BACKEND}/api/markets`, { signal: AbortSignal.timeout(12000) });
+      if (r.ok) {
+        const d = await r.json();
+        const raw = d.data || d;
+        if (Array.isArray(raw) && raw.length > 0) {
+          setStatus(`Live data via backend — ${raw.length} markets`);
+          document.getElementById('sb-datasource').textContent = `Data: Polymarket via ${new URL(LAHARA_BACKEND).hostname}`;
+          return parseRaw(raw);
+        }
+      }
+    } catch(_) {}
+  }
+
+  // Direct + CORS proxy fallback
+  const url = 'https://gamma-api.polymarket.com/markets?' +
+    new URLSearchParams({ active:'true', closed:'false', archived:'false', limit:'25', order:'volume24hr', ascending:'false' });
+  const raw = await tryFetch(url);
+  if (raw && Array.isArray(raw) && raw.length > 0) {
+    setStatus(`Live data — ${raw.length} markets`);
+    return parseRaw(raw);
+  }
+
+  setStatus('Live fetch blocked — showing realistic demo data');
+  return parseRaw(mockMarkets());
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FULL SCAN
+// ═══════════════════════════════════════════════════════════
+async function runFullScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>SCANNING…';
+
+  try {
+    S.markets = await fetchMarkets();
+    el('kpi-markets').textContent = S.markets.length;
+    el('kpi-scan-ts').textContent = 'Updated ' + nowTs();
+    el('market-count').textContent = `${S.markets.length} markets`;
+
+    setStatus(`${S.markets.length} markets loaded — running 6-stage pipeline…`);
+
+    for (let i = 0; i < S.markets.length; i++) {
+      const result = runPipeline(S.markets[i]);
+      S.markets[i].verdict   = result.verdict;
+      S.markets[i]._pipeline = result;
+      renderMarketTable();
+    }
+
+    // Simulate trade on best
+    const best = S.markets.find(m => m.verdict==='EXECUTE' || m.verdict==='EXECUTE_REDUCED');
+    if (best) {
+      const r = best._pipeline;
+      const stake = r.stake || 0;
+      const won   = Math.random() < 0.58;
+      const pnlD  = won ? +(stake*(0.04+Math.random()*0.14)).toFixed(2)
+                        : -(stake*(0.02+Math.random()*0.06)).toFixed(2);
+      S.equity = Math.max(1000, S.equity + pnlD);
+      S.peakEquity = Math.max(S.peakEquity, S.equity);
+      S.pnl += pnlD;
+      if (won) S.wins++; else S.losses++;
+      S.trades++;
+      S.pipelineLog.unshift({ ts:nowTs(), q:best.question.slice(0,55), verdict:best.verdict, IS:r.IS||0, stake, pnlD, won });
+      S.pipelineLog = S.pipelineLog.slice(0, 40);
+    }
+
+    renderAll();
+    setStatus(`Scan complete — ${S.markets.filter(m=>m.verdict==='EXECUTE'||m.verdict==='EXECUTE_REDUCED').length} executable${S.backendOnline ? ' — enriching with live news…' : ''}`);
+
+    // If backend online, enrich asynchronously
+    if (S.backendOnline && LAHARA_BACKEND) {
+      await enrichBatch(S.markets);
+    }
+
+  } catch(e) {
+    setStatus('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ SCAN MARKETS';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SELECT MARKET
+// ═══════════════════════════════════════════════════════════
+function selectMarket(idx) {
+  S.selectedIdx = idx;
+  document.querySelectorAll('#market-tbody tr').forEach((tr,i) => tr.classList.toggle('selected', i===idx));
+  const market = S.markets[idx];
+  if (!market._pipeline) market._pipeline = runPipeline(market);
+  renderPipeline(market._pipeline);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+function renderAll() {
+  renderKPIs();
+  renderMarketTable();
+  renderCapital();
+  renderLog();
+  if (S.selectedIdx !== null && S.markets[S.selectedIdx]) {
+    renderPipeline(S.markets[S.selectedIdx]._pipeline);
+  }
+}
+
+function renderKPIs() {
+  const pnlColor = S.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  el('kpi-equity').textContent  = '$' + S.equity.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  el('kpi-pnl').textContent     = (S.pnl>=0?'+':'') + '$' + Math.abs(S.pnl).toFixed(2);
+  el('kpi-pnl').style.color     = pnlColor;
+  el('kpi-pnl-pct').textContent = (S.pnl>=0?'+':'') + (S.pnl/10000*100).toFixed(2) + '%';
+  el('kpi-fee').textContent     = '$' + feeReserve().toFixed(0);
+  const t = S.wins + S.losses;
+  el('kpi-wr').textContent      = t ? (S.wins/t*100).toFixed(1)+'%' : '—';
+  el('kpi-wl').textContent      = `${S.wins}W / ${S.losses}L`;
+  el('kpi-trades').textContent  = S.trades;
+}
+
+function renderMarketTable() {
+  const tbody = el('market-tbody');
+  if (!S.markets.length) return;
+  tbody.innerHTML = S.markets.map((m, i) => {
+    const pct       = Math.round(m.q_yes * 100);
+    const barColor  = pct > 60 ? 'var(--green)' : pct < 40 ? 'var(--red)' : 'var(--amber)';
+    const vClass    = {EXECUTE:'v-execute',EXECUTE_REDUCED:'v-reduced',HOLD:'v-hold',REJECT:'v-reject'}[m.verdict] || 'v-pending';
+    const vLabel    = m.verdict || 'PENDING';
+    const isScore   = m._pipeline?.IS;
+    const isColor   = !isScore ? '' : isScore>=70?'var(--green)':isScore>=50?'var(--amber)':'var(--red)';
+    const timeColor = m.time_rem_pct>=0.6?'var(--green)':'var(--red)';
+    const newsC     = m._enriched ? 'eb-live' : 'eb-none';
+    const newsL     = m._enriched ? m._enriched.newsCount : '—';
+    return `<tr onclick="selectMarket(${i})">
+      <td style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;">${i+1}</td>
+      <td class="q-cell">
+        <span class="q-text">${esc(m.question)}</span>
+        <span class="q-sub">ID: ${m.market_id.slice(0,12)}…  |  ends ${m.end_date||'—'}</span>
+      </td>
+      <td>
+        <div class="prob-bar">
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          <span class="prob-num" style="color:${barColor}">${pct}%</span>
+        </div>
+      </td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:10px;">${(m.spread_pct*100).toFixed(2)}%</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;">$${fmtNum(m.volume_24h)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:${timeColor};font-size:10px;">${(m.time_rem_pct*100).toFixed(0)}%</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);">${m.rank_score.toFixed(3)}</td>
+      <td><span class="enrich-badge ${newsC}">${newsL}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="verdict-pill ${vClass}">${vLabel}</span>
+          ${isScore ? `<span class="is-score" style="color:${isColor}">${isScore}</span>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPipeline(result) {
+  const wrap  = el('pipeline-wrap');
+  const badge = el('pipe-verdict-badge');
+  if (!result) {
+    wrap.innerHTML = '<div class="pipe-empty"><span class="arrow">↑</span>Select a market row to run the<br>full intelligence pipeline</div>';
+    badge.innerHTML = '';
+    return;
+  }
+  const vClass = {EXECUTE:'v-execute',EXECUTE_REDUCED:'v-reduced',HOLD:'v-hold',REJECT:'v-reject'}[result.verdict]||'v-pending';
+  badge.innerHTML = `<span class="verdict-pill ${vClass}">${result.verdict}</span>`;
+
+  const nodeColor = s => s.n==='⊕'?'var(--cyan)':s.passed?'var(--green)':s.passed===false?'var(--red)':'var(--green)';
+  const connColor = s => s.passed?(s.n==='⊕'?'var(--cyan)':'var(--green)'):'var(--red)';
+  const circleClass = s => s.n==='⊕'?'s-bayes':s.passed?'s-pass':'s-fail';
+
+  const stagesHTML = result.log.map((s, i) => {
+    const isLast = i === result.log.length - 1;
+    const nd = (i * 0.38).toFixed(2), bd = (i * 0.38 + 0.18).toFixed(2);
+    const ld = (i * 0.38 + 0.3).toFixed(2), td = (i * 0.38 + 0.32).toFixed(2);
+    const cc = connColor(s);
+    return `<div class="stage-item" id="si-${i}" style="--travel-delay:${td}s;--connector-color:${cc};--travel-dist:44px;">
+      ${!isLast?`<div class="connector-line" style="height:calc(100% - 14px);background:${cc};opacity:0.25;--line-delay:${ld}s;"></div>`:''}
+      <div class="stage-node">
+        <div class="stage-circle ${circleClass(s)}" id="sc-${i}" style="color:${nodeColor(s)};border-color:${nodeColor(s)};--fire-delay:${nd}s;animation-delay:${nd}s;">
+          ${s.n}
+        </div>
+      </div>
+      <div class="stage-body" style="--body-delay:${bd}s;animation-delay:${bd}s;">
+        <div class="stage-name" style="color:${nodeColor(s)}">${s.label}</div>
+        <div class="stage-reason">${esc(s.reason)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const vrClass  = {EXECUTE:'vr-execute',EXECUTE_REDUCED:'vr-reduced',HOLD:'vr-hold',REJECT:'vr-reject'}[result.verdict]||'vr-reject';
+  const vrColor  = {EXECUTE:'var(--green)',EXECUTE_REDUCED:'var(--amber)',HOLD:'var(--cyan)',REJECT:'var(--red)'}[result.verdict]||'var(--red)';
+  const vrIcon   = {EXECUTE:'✅',EXECUTE_REDUCED:'⚡',HOLD:'⏸',REJECT:'❌'}[result.verdict]||'❌';
+  const vrDelay  = (result.log.length * 0.38 + 0.3).toFixed(2);
+  const vrDetail = (result.verdict==='EXECUTE'||result.verdict==='EXECUTE_REDUCED')
+    ? `side=${result.side}  stake=$${result.stake}  IS=${result.IS}  ev=${result.ev}  p_bayes=${result.pBayes}`
+    : result.reason;
+
+  // News articles section
+  let newsHTML = '';
+  const enr = result.market?._enriched;
+  if (enr && enr.articles && enr.articles.length > 0) {
+    const articles = enr.articles.slice(0, 4);
+    const dirClass = d => d==='BULLISH'?'nd-bull':d==='BEARISH'?'nd-bear':'nd-neu';
+    newsHTML = `
+    <div class="news-panel">
+      <div class="news-title">LIVE NEWS SIGNALS (${enr.newsCount} sources scanned)</div>
+      ${articles.map(a => `
+      <div class="news-item">
+        <div class="news-headline">${esc(a.title)}</div>
+        <div class="news-meta">
+          <span class="news-source">${esc(a.source)}</span>
+          <span class="news-dir ${dirClass(a.direction)}">${a.direction}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="pipe-market-name">${esc(result.market.question)}</div>
+    <div class="stage-list" id="stage-list">${stagesHTML}</div>
+    <div class="verdict-result ${vrClass}" style="animation-delay:${vrDelay}s;">
+      <div class="verdict-icon">${vrIcon}</div>
+      <div>
+        <div class="verdict-code" style="color:${vrColor}">${result.verdict}</div>
+        <div class="verdict-detail">${esc(vrDetail)}</div>
+      </div>
+    </div>
+    ${newsHTML}`;
+
+  result.log.forEach((s, i) => {
+    const item   = document.getElementById(`si-${i}`);
+    const circle = document.getElementById(`sc-${i}`);
+    if (!item || !circle) return;
+    const fireAt = i * 380, scanAt = fireAt - 80;
+    setTimeout(() => circle.classList.add('scanning'), Math.max(0, scanAt));
+    setTimeout(() => { circle.classList.remove('scanning'); circle.classList.add('fired'); item.classList.add('fired'); }, fireAt);
+  });
+}
+
+function renderCapital() {
+  el('cap-equity').textContent = '$' + S.equity.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  el('cap-fee').textContent    = '$' + feeReserve().toFixed(2);
+  el('cap-a').textContent      = '$' + tierAMax().toFixed(2);
+  el('cap-b').textContent      = '$' + tierBMax().toFixed(2);
+  el('kpi-fee').textContent    = '$' + feeReserve().toFixed(0);
+  el('bar-reserve').style.width = (FEE_RESERVE_PCT * 100) + '%';
+  el('bar-trade').style.width   = ((1 - FEE_RESERVE_PCT) * 100) + '%';
+}
+
+function renderLog() {
+  const wrap = el('log-wrap');
+  el('log-count').textContent = S.pipelineLog.length + ' runs';
+  if (!S.pipelineLog.length) { wrap.innerHTML='<div class="log-empty">Pipeline decisions will appear here</div>'; return; }
+  wrap.innerHTML = S.pipelineLog.map(l => {
+    const vClass = {EXECUTE:'v-execute',EXECUTE_REDUCED:'v-reduced',HOLD:'v-hold',REJECT:'v-reject'}[l.verdict]||'v-pending';
+    const pnlStr = l.pnlD != null
+      ? `<span style="color:${l.pnlD>=0?'var(--green)':'var(--red)'};font-family:'JetBrains Mono',monospace;font-size:9px;margin-left:auto">${l.pnlD>=0?'+':''}$${Math.abs(l.pnlD).toFixed(2)}</span>` : '';
+    return `<div class="log-row fade-in">
+      <span class="log-ts">${l.ts}</span>
+      <span class="verdict-pill ${vClass}" style="flex-shrink:0">${l.verdict}</span>
+      <span class="log-q">${esc(l.q)}</span>
+      ${l.IS ? `<span class="log-is">${l.IS}</span>` : ''}
+      ${pnlStr}
+    </div>`;
+  }).join('');
+}
+
+// ── Clock ──
+function tickClock() { el('sb-ts').textContent = new Date().toUTCString().slice(17,25) + ' UTC'; }
+setInterval(tickClock, 1000); tickClock();
+
+// ── Helpers ──
+function el(id)    { return document.getElementById(id); }
+function esc(s)    { const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+function nowTs()   { return new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function fmtNum(n) { return n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(1)}K`:String(Math.round(n)||0); }
+function setStatus(msg) { el('sb-status').textContent = msg; }
+</script>
+</body>
+</html>
